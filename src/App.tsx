@@ -1,4 +1,4 @@
-import OrderBook from "./components/OrderBook";
+import OrderBook from "@/modules/OrderBook";
 import "./App.css";
 
 const App = () => {
