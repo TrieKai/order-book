@@ -6,7 +6,7 @@ const socket = new WebSocket("wss://ws.btse.com/ws/futures");
 
 const useLatestTradePrice = () => {
   const [trend, setTrend] = useState(0);
-  const [lastPrice, setLastPrice] = useState(0);
+  const [latestPrice, setLatestPrice] = useState(0);
 
   const handleSocketMessage = useCallback(
     (event: MessageEvent) => {
@@ -17,11 +17,11 @@ const useLatestTradePrice = () => {
       if (success) {
         const newPrice = data.data[0].price;
 
-        setTrend(newPrice - lastPrice);
-        setLastPrice(data.data[0].price);
+        setTrend(newPrice - latestPrice);
+        setLatestPrice(data.data[0].price);
       }
     },
-    [lastPrice]
+    [latestPrice]
   );
 
   const subscribe = (): void => {
@@ -44,7 +44,7 @@ const useLatestTradePrice = () => {
   }, [handleSocketMessage]);
 
   return {
-    lastPrice,
+    latestPrice,
     trend,
   };
 };

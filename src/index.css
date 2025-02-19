@@ -7,21 +7,3 @@
     @apply m-0 font-mono antialiased;
   }
 }
-
-@keyframes flash-green {
-  0% { background-color: rgba(0, 177, 93, 0.5); }
-  100% { background-color: transparent; }
-}
-
-@keyframes flash-red {
-  0% { background-color: rgba(255, 90, 90, 0.5); }
-  100% { background-color: transparent; }
-}
-
-.flash-green {
-  animation: flash-green 1s ease-out;
-}
-
-.flash-red {
-  animation: flash-red 1s ease-out;
-}

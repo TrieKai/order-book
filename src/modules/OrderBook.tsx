@@ -1,8 +1,9 @@
+import { FC } from "react";
+import clsx from "clsx";
 import useLatestTradePrice from "@/hooks/useLatestTradePrice";
 import useOrderBook from "@/hooks/useOrderBook";
 import { ArrowDown as ArrowDownIcon } from "@/icons/arrowDown";
 import type { OrderBookRecordType } from "@/types/order";
-import { FC } from "react";
 
 const parseOrderBookRecords = (
   records: Record<number, number>,
@@ -37,7 +38,7 @@ const parseOrderBookRecords = (
 };
 
 const OrderBook: FC = () => {
-  const { lastPrice, trend } = useLatestTradePrice();
+  const { latestPrice, trend } = useLatestTradePrice();
   const {
     orderBook,
     highlightedQuotes,
@@ -47,9 +48,9 @@ const OrderBook: FC = () => {
 
   const trendColor =
     trend > 0
-      ? "text-systemGreen bg-systemGreen-12"
+      ? "text-buyPrice bg-buyBar"
       : trend < 0
-      ? "text-systemRed bg-systemRed-12"
+      ? "text-sellPrice bg-sellBar"
       : "";
 
   const asks = parseOrderBookRecords(orderBook.asks, "toHighest");
@@ -59,12 +60,12 @@ const OrderBook: FC = () => {
   const bidsTotal = bids.at(-1)?.total || 0;
 
   return (
-    <div className="py-2 w-80 font-extrabold bg-black">
-      <h1 className="text-xl px-2 pb-2 text-white">Order Book</h1>
+    <div className="py-2 w-80 font-extrabold bg-appBg text-textDefault">
+      <h1 className="text-xl px-2 pb-2">Order Book</h1>
 
-      <hr className="border-systemGray opacity-20" />
+      <hr className="border-textSecondary opacity-20" />
 
-      <div className="px-2 py-2 grid grid-cols-3 gap-x-3 text-systemGray font-normal text-sm">
+      <div className="px-2 py-2 grid grid-cols-3 gap-x-3 text-textSecondary font-normal text-sm">
         <span>Price (USD)</span>
         <span className="text-right">Size</span>
         <span className="text-right">Total</span>
@@ -75,30 +76,32 @@ const OrderBook: FC = () => {
         {asks.map(({ price, size, total }) => (
           <div
             key={price}
-            className={`grid grid-cols-3 gap-x-3 hover:bg-systemBlue transition-colors text-sm ${
-              highlightedQuotes.has(price) ? "bg-systemRed-50 " : ""
-            }`}
+            className={clsx(
+              "grid grid-cols-3 gap-x-3 hover:bg-hoverBg transition-colors text-sm",
+              highlightedQuotes.has(price) ? "bg-flashRed " : ""
+            )}
           >
-            <span className="text-systemRed">
+            <span className="text-sellPrice">
               {price.toLocaleString(undefined, {
                 minimumFractionDigits: 1,
                 maximumFractionDigits: 1,
               })}
             </span>
             <span
-              className={`text-right transition-colors duration-50 ${
+              className={clsx(
+                "text-right transition-colors duration-50",
                 highlightedQuoteIncreases.has(price)
-                  ? "bg-systemGreen-50"
+                  ? "bg-flashGreen"
                   : highlightedQuoteDecreases.has(price)
-                  ? "bg-systemRed-50"
+                  ? "bg-flashRed"
                   : ""
-              }`}
+              )}
             >
               {size.toLocaleString()}
             </span>
             <span className="text-right relative">
               <span
-                className="absolute right-0 bottom-0 top-0 bg-systemRed-12"
+                className="absolute right-0 bottom-0 top-0 bg-sellBar"
                 style={{ width: `${Math.round((total / asksTotal) * 100)}%` }}
               ></span>
               <span>{total.toLocaleString()}</span>
@@ -107,11 +110,14 @@ const OrderBook: FC = () => {
         ))}
       </div>
 
-      {/* LAST PRICE */}
+      {/* LATEST PRICE */}
       <div
-        className={`${trendColor} py-1 my-1 flex items-center justify-center gap-2 text-2xl`}
+        className={clsx(
+          trendColor,
+          "py-1 my-1 flex items-center justify-center gap-2 text-2xl"
+        )}
       >
-        {lastPrice.toLocaleString()}
+        {latestPrice.toLocaleString()}
 
         {trend !== 0 && (
           <ArrowDownIcon
@@ -125,30 +131,32 @@ const OrderBook: FC = () => {
         {bids.map(({ price, size, total }) => (
           <div
             key={price}
-            className={`grid grid-cols-3 gap-x-3 hover:bg-systemBlue transition-colors text-sm ${
-              highlightedQuotes.has(price) ? "bg-systemGreen-50" : ""
-            }`}
+            className={clsx(
+              "grid grid-cols-3 gap-x-3 hover:bg-hoverBg transition-colors text-sm",
+              highlightedQuotes.has(price) ? "bg-flashGreen" : ""
+            )}
           >
-            <span className="text-systemGreen">
+            <span className="text-buyPrice">
               {price.toLocaleString(undefined, {
                 minimumFractionDigits: 1,
                 maximumFractionDigits: 1,
               })}
             </span>
             <span
-              className={`text-right transition-colors duration-50 ${
+              className={clsx(
+                "text-right transition-colors duration-50",
                 highlightedQuoteIncreases.has(price)
-                  ? "bg-systemGreen-50"
+                  ? "bg-flashGreen"
                   : highlightedQuoteDecreases.has(price)
-                  ? "bg-systemRed-50"
+                  ? "bg-flashRed"
                   : ""
-              }`}
+              )}
             >
               {size.toLocaleString()}
             </span>
             <span className="text-right relative">
               <span
-                className="absolute right-0 bottom-0 top-0 bg-systemGreen-12"
+                className="absolute right-0 bottom-0 top-0 bg-buyBar"
                 style={{ width: `${Math.round((total / bidsTotal) * 100)}%` }}
               ></span>
               <span>{total.toLocaleString()}</span>
