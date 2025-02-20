@@ -1,26 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { OrderBook, OrderBookSchema, orderBookSchema } from "@/types/order";
-
-const TOPIC = "update:BTCPFC";
-const socket = new WebSocket("wss://ws.btse.com/ws/oss/futures");
-
-const subscribe = () => {
-  socket.send(
-    JSON.stringify({
-      op: "subscribe",
-      args: [TOPIC],
-    })
-  );
-};
-
-const unsubscribe = () => {
-  socket.send(
-    JSON.stringify({
-      op: "unsubscribe",
-      args: [TOPIC],
-    })
-  );
-};
+import { OrderBook, OrderBookSchema } from "@/types/order";
+import { orderBookWsService } from "@/services/orderBookWebsocket";
 
 const parseOrderTuple = (
   orderList: Array<[string, string]>,
@@ -80,8 +60,8 @@ const useOrderBook = () => {
 
   const resubscribe = useCallback(() => {
     console.warn("resubscribe");
-    unsubscribe();
-    subscribe();
+    orderBookWsService.unsubscribe();
+    orderBookWsService.subscribe();
   }, []);
 
   const updateOrderBook = useCallback(
@@ -140,26 +120,20 @@ const useOrderBook = () => {
   }, [orderBook, resubscribe]);
 
   const handleSocketMessage = useCallback(
-    (event: MessageEvent) => {
-      const { success, data } = orderBookSchema.safeParse(
-        JSON.parse(event.data)
-      );
-
-      if (success) {
-        if (data.data.type === "snapshot") {
-          initializeOrderBook(data);
+    (data: OrderBookSchema) => {
+      if (data.data.type === "snapshot") {
+        initializeOrderBook(data);
+      } else {
+        const isSeqMismatch = lastSeqNum.current !== data.data.prevSeqNum;
+        if (isSeqMismatch) {
+          console.warn("sequence mismatch!");
+          console.warn("previous sequence: ", lastSeqNum.current);
+          console.warn("previous sequence check: ", data.data.prevSeqNum);
+          console.warn("new sequence: ", data.data.seqNum);
+          resubscribe();
         } else {
-          const isSeqMismatch = lastSeqNum.current !== data.data.prevSeqNum;
-          if (isSeqMismatch) {
-            console.warn("sequence mismatch!");
-            console.warn("previous sequence: ", lastSeqNum.current);
-            console.warn("previous sequence check: ", data.data.prevSeqNum);
-            console.warn("new sequence: ", data.data.seqNum);
-            resubscribe();
-          } else {
-            updateOrderBook(data);
-            checkCrossBook();
-          }
+          updateOrderBook(data);
+          checkCrossBook();
         }
       }
     },
@@ -167,12 +141,11 @@ const useOrderBook = () => {
   );
 
   useEffect(() => {
-    socket.addEventListener("open", subscribe);
-    socket.addEventListener("message", handleSocketMessage);
+    orderBookWsService.setMessageHandler(handleSocketMessage);
+    orderBookWsService.connect();
 
     return () => {
-      socket.removeEventListener("open", subscribe);
-      socket.removeEventListener("message", handleSocketMessage);
+      orderBookWsService.disconnect();
     };
   }, [handleSocketMessage]);
 
