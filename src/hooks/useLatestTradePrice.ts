@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { z } from "zod";
 import { tradeWsService } from "@/services/tradeWebsocket";
-import { tradeFillsSchema } from "@/types/trade";
+import type { tradeFillsSchema } from "@/types/trade";
 
 interface UseLatestTradePriceReturn {
   trend: number;

@@ -1,39 +1,61 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { OrderBook, OrderBookSchema } from "@/types/order";
 import { orderBookWsService } from "@/services/orderBookWebsocket";
+import type { OrderBook, OrderBookSchema } from "@/types/order";
 
-const parseOrderTuple = (
+interface OrderRecordChanges {
+  records: Record<number, number>;
+  newRecords: Set<number>;
+  increasedRecords: Set<number>;
+  decreasedRecords: Set<number>;
+}
+
+const processOrderRecord = (
+  acc: Record<number, number>,
+  changes: {
+    newRecords: Set<number>;
+    increasedRecords: Set<number>;
+    decreasedRecords: Set<number>;
+  },
+  price: number,
+  size: number
+): void => {
+  if (size === 0) {
+    delete acc[price];
+    return;
+  }
+
+  if (!acc[price]) {
+    changes.newRecords.add(price);
+  } else if (acc[price] > size) {
+    changes.decreasedRecords.add(price);
+  } else {
+    changes.increasedRecords.add(price);
+  }
+
+  acc[price] = size;
+};
+
+const parseOrderBookTuple = (
   orderList: Array<[string, string]>,
-  defaultOrderBook?: Record<number, number>
-): [Record<number, number>, Set<number>, Set<number>, Set<number>] => {
-  const newRecords = new Set<number>();
-  const increasedRecords = new Set<number>();
-  const decreasedRecords = new Set<number>();
+  defaultOrderBook: Record<number, number> = {}
+): OrderRecordChanges => {
+  const changes = {
+    newRecords: new Set<number>(),
+    increasedRecords: new Set<number>(),
+    decreasedRecords: new Set<number>(),
+  };
 
   const records = orderList.reduce<Record<number, number>>(
     (acc, [price, size]) => {
       const priceValue = parseFloat(price);
       const sizeValue = parseFloat(size);
-
-      if (sizeValue === 0) {
-        delete acc[priceValue];
-      } else {
-        if (!acc[parseFloat(price)]) {
-          newRecords.add(parseFloat(price));
-        } else if (acc[parseFloat(price)] > parseFloat(size)) {
-          decreasedRecords.add(parseFloat(price));
-        } else {
-          increasedRecords.add(parseFloat(price));
-        }
-
-        acc[parseFloat(price)] = parseFloat(size);
-      }
+      processOrderRecord(acc, changes, priceValue, sizeValue);
       return acc;
     },
-    defaultOrderBook || {}
+    { ...defaultOrderBook }
   );
 
-  return [records, newRecords, increasedRecords, decreasedRecords];
+  return { records, ...changes };
 };
 
 interface UseOrderBookReturn {
@@ -59,8 +81,8 @@ const useOrderBook = (): UseOrderBookReturn => {
     console.warn("initialize order book");
     lastSeqNum.current = data.data.seqNum;
 
-    const [newBids] = parseOrderTuple(data.data.bids);
-    const [newAsks] = parseOrderTuple(data.data.asks);
+    const { records: newBids } = parseOrderBookTuple(data.data.bids);
+    const { records: newAsks } = parseOrderBookTuple(data.data.asks);
 
     setOrderBook({ bids: newBids, asks: newAsks });
   }, []);
@@ -75,37 +97,40 @@ const useOrderBook = (): UseOrderBookReturn => {
     (data: OrderBookSchema): void => {
       lastSeqNum.current = data.data.seqNum;
 
-      const [
-        updatedBids,
-        highlightedBids,
-        highlightedBidIncreases,
-        highlightedBidDecreases,
-      ] = parseOrderTuple(data.data.bids, {
-        ...orderBook.bids,
-      });
-      const [
-        updatedAsks,
-        highlightedAsks,
-        highlightedAskIncreases,
-        highlightedAskDecreases,
-      ] = parseOrderTuple(data.data.asks, {
-        ...orderBook.asks,
-      });
+      const {
+        records: updatedBids,
+        newRecords: highlightedBids,
+        increasedRecords: highlightedBidIncreases,
+        decreasedRecords: highlightedBidDecreases,
+      } = parseOrderBookTuple(data.data.bids, orderBook.bids);
+
+      const {
+        records: updatedAsks,
+        newRecords: highlightedAsks,
+        increasedRecords: highlightedAskIncreases,
+        decreasedRecords: highlightedAskDecreases,
+      } = parseOrderBookTuple(data.data.asks, orderBook.asks);
 
       setOrderBook({ bids: updatedBids, asks: updatedAsks });
-      setHighlightedQuotes(new Set([...highlightedBids, ...highlightedAsks]));
-      setHighlightedQuoteIncreases(
-        new Set([...highlightedBidIncreases, ...highlightedAskIncreases])
-      );
-      setHighlightedQuoteDecreases(
-        new Set([...highlightedBidDecreases, ...highlightedAskDecreases])
-      );
 
-      setTimeout(() => {
+      const updateHighlightedRecords = (): void => {
+        setHighlightedQuotes(new Set([...highlightedBids, ...highlightedAsks]));
+        setHighlightedQuoteIncreases(
+          new Set([...highlightedBidIncreases, ...highlightedAskIncreases])
+        );
+        setHighlightedQuoteDecreases(
+          new Set([...highlightedBidDecreases, ...highlightedAskDecreases])
+        );
+      };
+
+      const clearHighlightedRecords = (): void => {
         setHighlightedQuotes(new Set());
         setHighlightedQuoteIncreases(new Set());
         setHighlightedQuoteDecreases(new Set());
-      }, 100);
+      };
+
+      updateHighlightedRecords();
+      setTimeout(clearHighlightedRecords, 100);
     },
     [orderBook]
   );

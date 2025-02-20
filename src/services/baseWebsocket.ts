@@ -99,7 +99,7 @@ export abstract class BaseWebSocketService<T> {
     }
   };
 
-  protected subscribe(): void {
+  public subscribe(): void {
     if (this.socket?.readyState === WebSocket.OPEN) {
       this.socket.send(
         JSON.stringify({
@@ -110,7 +110,7 @@ export abstract class BaseWebSocketService<T> {
     }
   }
 
-  protected unsubscribe(): void {
+  public unsubscribe(): void {
     if (this.socket?.readyState === WebSocket.OPEN) {
       this.socket.send(
         JSON.stringify({

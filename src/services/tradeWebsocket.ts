@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { tradeFillsSchema } from "@/types/trade";
 import { BaseWebSocketService } from "./baseWebsocket";
+import { tradeFillsSchema } from "@/types/trade";
 
 type TradeWebSocketData = z.infer<typeof tradeFillsSchema>;
 
