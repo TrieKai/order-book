@@ -36,7 +36,14 @@ const parseOrderTuple = (
   return [records, newRecords, increasedRecords, decreasedRecords];
 };
 
-const useOrderBook = () => {
+interface UseOrderBookReturn {
+  orderBook: OrderBook;
+  highlightedQuotes: Set<number>;
+  highlightedQuoteIncreases: Set<number>;
+  highlightedQuoteDecreases: Set<number>;
+}
+
+const useOrderBook = (): UseOrderBookReturn => {
   const [orderBook, setOrderBook] = useState<OrderBook>({ bids: {}, asks: {} });
   const [highlightedQuotes, setHighlightedQuotes] = useState(new Set<number>());
   const [highlightedQuoteIncreases, setHighlightedQuoteIncreases] = useState(
@@ -48,7 +55,7 @@ const useOrderBook = () => {
 
   const lastSeqNum = useRef<number | null>(null);
 
-  const initializeOrderBook = useCallback((data: OrderBookSchema) => {
+  const initializeOrderBook = useCallback((data: OrderBookSchema): void => {
     console.warn("initialize order book");
     lastSeqNum.current = data.data.seqNum;
 
@@ -58,14 +65,14 @@ const useOrderBook = () => {
     setOrderBook({ bids: newBids, asks: newAsks });
   }, []);
 
-  const resubscribe = useCallback(() => {
+  const resubscribe = useCallback((): void => {
     console.warn("resubscribe");
     orderBookWsService.unsubscribe();
     orderBookWsService.subscribe();
   }, []);
 
   const updateOrderBook = useCallback(
-    (data: OrderBookSchema) => {
+    (data: OrderBookSchema): void => {
       lastSeqNum.current = data.data.seqNum;
 
       const [
@@ -86,12 +93,12 @@ const useOrderBook = () => {
       });
 
       setOrderBook({ bids: updatedBids, asks: updatedAsks });
-      setHighlightedQuotes(highlightedBids.union(highlightedAsks));
+      setHighlightedQuotes(new Set([...highlightedBids, ...highlightedAsks]));
       setHighlightedQuoteIncreases(
-        highlightedBidIncreases.union(highlightedAskIncreases)
+        new Set([...highlightedBidIncreases, ...highlightedAskIncreases])
       );
       setHighlightedQuoteDecreases(
-        highlightedBidDecreases.union(highlightedAskDecreases)
+        new Set([...highlightedBidDecreases, ...highlightedAskDecreases])
       );
 
       setTimeout(() => {
@@ -103,7 +110,7 @@ const useOrderBook = () => {
     [orderBook]
   );
 
-  const checkCrossBook = useCallback(() => {
+  const checkCrossBook = useCallback((): void => {
     const bestBid = Math.max(...Object.keys(orderBook.bids).map(Number), 0);
     const bestAsk = Math.min(
       ...Object.keys(orderBook.asks).map(Number),
@@ -120,7 +127,7 @@ const useOrderBook = () => {
   }, [orderBook, resubscribe]);
 
   const handleSocketMessage = useCallback(
-    (data: OrderBookSchema) => {
+    (data: OrderBookSchema): void => {
       if (data.data.type === "snapshot") {
         initializeOrderBook(data);
       } else {

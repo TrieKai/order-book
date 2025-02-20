@@ -1,40 +1,36 @@
-import { FC } from "react";
-import clsx from "clsx";
+import { FC, useMemo } from "react";
+import OrderBookRow from "@/components/OrderBookRow";
+import LatestPrice from "@/components/LatestPrice";
 import useLatestTradePrice from "@/hooks/useLatestTradePrice";
 import useOrderBook from "@/hooks/useOrderBook";
-import { ArrowDown as ArrowDownIcon } from "@/icons/arrowDown";
 import type { OrderBookRecordType } from "@/types/order";
 
-const parseOrderBookRecords = (
+const MAX_ORDERS = 8;
+
+const parseOrderBookData = (
   records: Record<number, number>,
   accumulativeDirection: "toHighest" | "toLowest"
-) => {
+): OrderBookRecordType[] => {
   const highestFirstRecordsSlice = Object.entries(records)
     .sort(([priceA], [priceB]) => parseFloat(priceB) - parseFloat(priceA))
-    .slice(0, 8);
+    .slice(0, MAX_ORDERS);
+
+  const calculateRecords = (
+    entries: [string, number][]
+  ): OrderBookRecordType[] =>
+    entries.reduce<OrderBookRecordType[]>((acc, [price, size]) => {
+      const record = {
+        price: parseFloat(price),
+        size,
+        total: (acc.at(-1)?.total || 0) + size,
+      };
+      acc.push(record);
+      return acc;
+    }, []);
 
   return accumulativeDirection === "toHighest"
-    ? highestFirstRecordsSlice
-        .reverse()
-        .reduce<OrderBookRecordType[]>((acc, cur) => {
-          const record = {
-            price: parseFloat(cur[0]),
-            size: cur[1],
-            total: (acc.at(-1)?.total || 0) + cur[1],
-          };
-          acc.push(record);
-          return acc;
-        }, [])
-        .reverse()
-    : highestFirstRecordsSlice.reduce<OrderBookRecordType[]>((acc, cur) => {
-        const record = {
-          price: parseFloat(cur[0]),
-          size: cur[1],
-          total: (acc.at(-1)?.total || 0) + cur[1],
-        };
-        acc.push(record);
-        return acc;
-      }, []);
+    ? calculateRecords([...highestFirstRecordsSlice].reverse()).reverse()
+    : calculateRecords(highestFirstRecordsSlice);
 };
 
 const OrderBook: FC = () => {
@@ -46,18 +42,17 @@ const OrderBook: FC = () => {
     highlightedQuoteIncreases,
   } = useOrderBook();
 
-  const trendColor =
-    trend > 0
-      ? "text-buyPrice bg-buyBar"
-      : trend < 0
-      ? "text-sellPrice bg-sellBar"
-      : "";
+  const { asks, bids, asksTotal, bidsTotal } = useMemo(() => {
+    const asks = parseOrderBookData(orderBook.asks, "toHighest");
+    const bids = parseOrderBookData(orderBook.bids, "toLowest");
 
-  const asks = parseOrderBookRecords(orderBook.asks, "toHighest");
-  const bids = parseOrderBookRecords(orderBook.bids, "toLowest");
-
-  const asksTotal = asks.at(0)?.total || 0;
-  const bidsTotal = bids.at(-1)?.total || 0;
+    return {
+      asks,
+      bids,
+      asksTotal: asks.at(0)?.total || 0,
+      bidsTotal: bids.at(-1)?.total || 0,
+    };
+  }, [orderBook]);
 
   return (
     <div className="py-2 w-80 font-extrabold bg-appBg text-textDefault">
@@ -71,97 +66,36 @@ const OrderBook: FC = () => {
         <span className="text-right">Total</span>
       </div>
 
-      {/* ASKS */}
+      {/* asks */}
       <div className="flex flex-col px-2 gap-1">
-        {asks.map(({ price, size, total }) => (
-          <div
-            key={price}
-            className={clsx(
-              "grid grid-cols-3 gap-x-3 hover:bg-hoverBg transition-colors text-sm",
-              highlightedQuotes.has(price) ? "bg-flashRed " : ""
-            )}
-          >
-            <span className="text-sellPrice">
-              {price.toLocaleString(undefined, {
-                minimumFractionDigits: 1,
-                maximumFractionDigits: 1,
-              })}
-            </span>
-            <span
-              className={clsx(
-                "text-right transition-colors duration-50",
-                highlightedQuoteIncreases.has(price)
-                  ? "bg-flashGreen"
-                  : highlightedQuoteDecreases.has(price)
-                  ? "bg-flashRed"
-                  : ""
-              )}
-            >
-              {size.toLocaleString()}
-            </span>
-            <span className="text-right relative">
-              <span
-                className="absolute right-0 bottom-0 top-0 bg-sellBar"
-                style={{ width: `${Math.round((total / asksTotal) * 100)}%` }}
-              ></span>
-              <span>{total.toLocaleString()}</span>
-            </span>
-          </div>
+        {asks.map((record) => (
+          <OrderBookRow
+            key={record.price}
+            {...record}
+            maxTotal={asksTotal}
+            isHighlighted={highlightedQuotes.has(record.price)}
+            isIncreased={highlightedQuoteIncreases.has(record.price)}
+            isDecreased={highlightedQuoteDecreases.has(record.price)}
+            side="sell"
+          />
         ))}
       </div>
 
-      {/* LATEST PRICE */}
-      <div
-        className={clsx(
-          trendColor,
-          "py-1 my-1 flex items-center justify-center gap-2 text-2xl"
-        )}
-      >
-        {latestPrice.toLocaleString()}
+      {/* latest price */}
+      <LatestPrice price={latestPrice} trend={trend} />
 
-        {trend !== 0 && (
-          <ArrowDownIcon
-            className={trend > 0 ? "rotate-180 " : ""}
-          ></ArrowDownIcon>
-        )}
-      </div>
-
-      {/* BIDS */}
+      {/* bids */}
       <div className="flex flex-col px-2 gap-1">
-        {bids.map(({ price, size, total }) => (
-          <div
-            key={price}
-            className={clsx(
-              "grid grid-cols-3 gap-x-3 hover:bg-hoverBg transition-colors text-sm",
-              highlightedQuotes.has(price) ? "bg-flashGreen" : ""
-            )}
-          >
-            <span className="text-buyPrice">
-              {price.toLocaleString(undefined, {
-                minimumFractionDigits: 1,
-                maximumFractionDigits: 1,
-              })}
-            </span>
-            <span
-              className={clsx(
-                "text-right transition-colors duration-50",
-                highlightedQuoteIncreases.has(price)
-                  ? "bg-flashGreen"
-                  : highlightedQuoteDecreases.has(price)
-                  ? "bg-flashRed"
-                  : ""
-              )}
-            >
-              {size.toLocaleString()}
-            </span>
-            <span className="text-right relative">
-              <span
-                className="absolute right-0 bottom-0 top-0 bg-buyBar"
-                style={{ width: `${Math.round((total / bidsTotal) * 100)}%` }}
-              ></span>
-              <span>{total.toLocaleString()}</span>
-            </span>
-          </div>
+        {bids.map((record) => (
+          <OrderBookRow
+            key={record.price}
+            {...record}
+            maxTotal={bidsTotal}
+            isHighlighted={highlightedQuotes.has(record.price)}
+            isIncreased={highlightedQuoteIncreases.has(record.price)}
+            isDecreased={highlightedQuoteDecreases.has(record.price)}
+            side="buy"
+          />
         ))}
       </div>
     </div>

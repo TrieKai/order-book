@@ -3,7 +3,7 @@ import "./App.css";
 
 const App = () => {
   return (
-    <div className="min-h-screen bg-[#131B29] flex items-center justify-center">
+    <div className="min-h-screen bg-black flex items-center justify-center">
       <OrderBook />
     </div>
   );
