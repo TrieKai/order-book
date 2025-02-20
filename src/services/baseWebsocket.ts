@@ -12,8 +12,6 @@ export abstract class BaseWebSocketService<T> {
   protected maxReconnectAttempts = 5;
   protected reconnectDelay = 1000; // initial reconnect delay 1 second
   protected reconnectTimer: number | null = null;
-  protected heartbeatInterval: number | null = null;
-  protected readonly heartbeatDelay = 30000; // heartbeat per 30 seconds
 
   protected constructor(
     protected readonly wsUrl: string,
@@ -32,7 +30,6 @@ export abstract class BaseWebSocketService<T> {
 
   public disconnect(): void {
     this.clearReconnectTimer();
-    this.clearHeartbeat();
 
     if (this.socket) {
       this.unsubscribe();
@@ -74,13 +71,13 @@ export abstract class BaseWebSocketService<T> {
     this.setStatus("connected");
     this.reconnectAttempts = 0;
     this.subscribe();
-    this.startHeartbeat();
   };
 
-  protected handleClose = (): void => {
+  protected handleClose = (event: CloseEvent): void => {
     this.setStatus("disconnected");
-    this.clearHeartbeat();
-    this.attemptReconnect();
+    if (event.code !== 1000 && event.code !== 1001) {
+      this.attemptReconnect();
+    }
   };
 
   protected handleError = (error: Event): void => {
@@ -124,39 +121,34 @@ export abstract class BaseWebSocketService<T> {
   protected attemptReconnect(): void {
     if (
       this.reconnectAttempts < this.maxReconnectAttempts &&
-      this.status !== "connected"
+      this.status !== "connected" &&
+      this.status !== "connecting"
     ) {
       const delay = Math.min(
         this.reconnectDelay * Math.pow(2, this.reconnectAttempts),
         30000
-      ); // 最大延遲 30 秒
+      );
+
+      console.log(
+        `Scheduling reconnect attempt ${
+          this.reconnectAttempts + 1
+        } in ${delay}ms`
+      );
 
       this.reconnectTimer = setTimeout(() => {
-        console.log(
-          `Attempting to reconnect... (${this.reconnectAttempts + 1}/${
-            this.maxReconnectAttempts
-          })`
-        );
-        this.reconnectAttempts++;
-        this.connect();
+        if (this.status !== "connected") {
+          // check status again
+          console.log(
+            `Attempting to reconnect... (${this.reconnectAttempts + 1}/${
+              this.maxReconnectAttempts
+            })`
+          );
+          this.reconnectAttempts++;
+          this.connect();
+        }
       }, delay);
     } else if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.error("Max reconnection attempts reached");
-    }
-  }
-
-  protected startHeartbeat(): void {
-    this.heartbeatInterval = setInterval(() => {
-      if (this.socket?.readyState === WebSocket.OPEN) {
-        this.socket.send(JSON.stringify({ op: "ping" }));
-      }
-    }, this.heartbeatDelay);
-  }
-
-  protected clearHeartbeat(): void {
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-      this.heartbeatInterval = null;
     }
   }
 

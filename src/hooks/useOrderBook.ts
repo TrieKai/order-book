@@ -135,22 +135,6 @@ const useOrderBook = (): UseOrderBookReturn => {
     [orderBook]
   );
 
-  const checkCrossBook = useCallback((): void => {
-    const bestBid = Math.max(...Object.keys(orderBook.bids).map(Number), 0);
-    const bestAsk = Math.min(
-      ...Object.keys(orderBook.asks).map(Number),
-      Infinity
-    );
-
-    if (bestBid >= bestAsk) {
-      console.warn("Crossed order book detected!");
-      console.warn("bestBid: ", bestBid);
-      console.warn("bestAsk: ", bestAsk);
-      console.warn("orderBook: ", orderBook);
-      resubscribe();
-    }
-  }, [orderBook, resubscribe]);
-
   const handleSocketMessage = useCallback(
     (data: OrderBookSchema): void => {
       if (data.data.type === "snapshot") {
@@ -159,26 +143,24 @@ const useOrderBook = (): UseOrderBookReturn => {
         const isSeqMismatch = lastSeqNum.current !== data.data.prevSeqNum;
         if (isSeqMismatch) {
           console.warn("sequence mismatch!");
-          console.warn("previous sequence: ", lastSeqNum.current);
-          console.warn("previous sequence check: ", data.data.prevSeqNum);
-          console.warn("new sequence: ", data.data.seqNum);
           resubscribe();
         } else {
           updateOrderBook(data);
-          checkCrossBook();
         }
       }
     },
-    [checkCrossBook, initializeOrderBook, resubscribe, updateOrderBook]
+    [initializeOrderBook, resubscribe, updateOrderBook]
   );
 
   useEffect(() => {
-    orderBookWsService.setMessageHandler(handleSocketMessage);
     orderBookWsService.connect();
-
     return () => {
       orderBookWsService.disconnect();
     };
+  }, []);
+
+  useEffect(() => {
+    orderBookWsService.setMessageHandler(handleSocketMessage);
   }, [handleSocketMessage]);
 
   return {
