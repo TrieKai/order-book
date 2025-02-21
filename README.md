@@ -25,6 +25,28 @@ A real-time cryptocurrency order book visualization built with React and Vite. T
 - WebSocket for real-time data
 - Tailwind CSS for styling
 
+## Project Structure
+
+```
+├── public/             # Static files
+├── src/                # Source code
+│   ├── assets/         # Images and other assets
+│   ├── components/     # Reusable React components
+│   ├── hooks/          # Custom React hooks
+│   ├── icons/          # SVG icons and icon components
+│   ├── modules/        # Feature-specific modules
+│   ├── services/       # API and WebSocket services
+│   ├── types/          # TypeScript type definitions
+│   ├── utils/          # Utility functions
+│   ├── App.tsx         # Root React component
+│   └── main.tsx        # Application entry point
+├── index.html          # HTML entry point
+├── package.json        # Project dependencies and scripts
+├── tailwind.config.js  # Tailwind CSS configuration
+├── tsconfig.json       # TypeScript configuration
+└── vite.config.js      # Vite configuration
+```
+
 ## Getting Started
 
 ### Prerequisites
