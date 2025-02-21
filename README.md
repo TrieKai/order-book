@@ -2,6 +2,14 @@
 
 A real-time cryptocurrency order book visualization built with React and Vite. This application displays live market data showing buy and sell orders in an interactive interface.
 
+## Demo
+
+🔗 [Live Demo](https://order-book-liard.vercel.app/)
+
+| video |
+| ----- |
+| <img style="width: 350px" src='https://github.com/user-attachments/assets/56c37337-96fd-4a3a-8602-45dc1253fdd3' alt='demo video' /> |
+
 ## Features
 
 - Real-time WebSocket connection for live market data
